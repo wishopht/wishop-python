@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wishop"
+version = "1.0.0"
+description = "The official Python client for the Wishop API"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+dependencies = ["requests>=2.25"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "License :: OSI Approved :: MIT License",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Documentation = "https://docs.wishop.com"
+Source = "https://github.com/wishop/wishop-python"
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "responses>=0.23"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["wishop"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
