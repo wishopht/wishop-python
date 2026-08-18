@@ -16,6 +16,15 @@ def parse_datetime(value: Optional[str]) -> Optional[datetime]:
     return datetime.fromisoformat(value)
 
 
+def parse_required_datetime(value: str) -> datetime:
+    parsed = parse_datetime(value)
+
+    if parsed is None:
+        raise ValueError("expected a timestamp")
+
+    return parsed
+
+
 def parse_charge(payload: Dict[str, Any]) -> Charge:
     return Charge(
         id=payload["id"],
@@ -23,7 +32,7 @@ def parse_charge(payload: Dict[str, Any]) -> Charge:
         currency=payload["currency"],
         amount=payload["amount"],
         livemode=payload["livemode"],
-        created_at=parse_datetime(payload["created_at"]),
+        created_at=parse_required_datetime(payload["created_at"]),
         order_id=payload.get("order_id"),
         description=payload.get("description"),
         fee_bearer=payload.get("fee_bearer"),
@@ -49,7 +58,7 @@ def parse_refund(payload: Dict[str, Any]) -> Refund:
         currency=payload["currency"],
         status=payload["status"],
         livemode=payload["livemode"],
-        created_at=parse_datetime(payload["created_at"]),
+        created_at=parse_required_datetime(payload["created_at"]),
         reason=payload.get("reason"),
         description=payload.get("description"),
     )
@@ -70,7 +79,7 @@ def parse_event(payload: Dict[str, Any]) -> Event:
         id=payload["id"],
         type=payload["type"],
         api_version=payload["api_version"],
-        created_at=parse_datetime(payload["created_at"]),
+        created_at=parse_required_datetime(payload["created_at"]),
         livemode=payload["livemode"],
         data=EventData(
             object=data.get("object", "charge"),
