@@ -6,9 +6,10 @@ import requests
 
 from ._transport import DEFAULT_BASE_URL, DEFAULT_TIMEOUT, Transport
 from .resources.charges import Charges
+from .resources.payouts import Payouts
 from .resources.refunds import Refunds
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 
 class Wishop:
@@ -30,3 +31,4 @@ class Wishop:
 
         self.charges = Charges(transport)
         self.refunds = Refunds(transport)
+        self.payouts = Payouts(transport)

@@ -97,3 +97,33 @@ def test_rejects_wrong_secret():
 def test_rejects_malformed_headers(malformed):
     with pytest.raises(SignatureVerificationError):
         construct_event(PAYLOAD, malformed, "whsec_test")
+
+
+PAYOUT_PAYLOAD = (
+    '{"id":"evt_6Lm4pT8vRw2nKxQd","type":"payout.succeeded","api_version":"2026-08-01",'
+    '"created_at":"2026-08-31T12:04:12.006Z","livemode":true,"data":{"object":"payout",'
+    '"payout":{"id":"po_7Hn2vB9xQm4tRkLw","recipient_phone":"+50931234567","currency":"HTG",'
+    '"amount":"150.00","fee":"3.00","status":"SUCCEEDED","livemode":true,'
+    '"created_at":"2026-08-31T12:04:11.318Z","completed_at":"2026-08-31T12:04:12.006Z"}}}'
+).encode("utf-8")
+
+
+def test_construct_event_parses_a_payout_event():
+    """A payout event carries no charge.
+
+    Before 1.1.0 this raised KeyError, because parse_event read data["charge"]
+    unconditionally.
+    """
+    event = construct_event(
+        PAYOUT_PAYLOAD,
+        header(payload=PAYOUT_PAYLOAD),
+        "whsec_test",
+    )
+
+    assert event.type == "payout.succeeded"
+    assert event.data.object == "payout"
+    assert event.data.charge is None
+    assert event.data.payout is not None
+    assert event.data.payout.id == "po_7Hn2vB9xQm4tRkLw"
+    assert event.data.payout.fee == "3.00"
+    assert event.data.payout.status == "SUCCEEDED"

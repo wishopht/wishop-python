@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from .types import Charge, ChargeList, Event, EventData, Refund
+from .types import Charge, ChargeList, Event, EventData, Payout, PayoutList, Refund
 
 
 def parse_datetime(value: Optional[str]) -> Optional[datetime]:
@@ -71,10 +71,39 @@ def parse_charge_list(payload: Dict[str, Any]) -> ChargeList:
     )
 
 
+def parse_payout(payload: Dict[str, Any]) -> Payout:
+    return Payout(
+        id=payload["id"],
+        recipient_phone=payload["recipient_phone"],
+        currency=payload["currency"],
+        amount=payload["amount"],
+        fee=payload["fee"],
+        status=payload["status"],
+        livemode=payload["livemode"],
+        created_at=parse_required_datetime(payload["created_at"]),
+        recipient_name=payload.get("recipient_name"),
+        fail_reason=payload.get("fail_reason"),
+        reference=payload.get("reference"),
+        metadata=payload.get("metadata") or {},
+        completed_at=parse_datetime(payload.get("completed_at")),
+    )
+
+
+def parse_payout_list(payload: Dict[str, Any]) -> PayoutList:
+    return PayoutList(
+        payouts=[parse_payout(item) for item in payload.get("payouts", [])],
+        has_more=payload.get("has_more", False),
+    )
+
+
 def parse_event(payload: Dict[str, Any]) -> Event:
     data = payload.get("data") or {}
+    charge = data.get("charge")
     refund = data.get("refund")
+    payout = data.get("payout")
 
+    # Parse only the object the event actually carries. Reading data["charge"]
+    # unconditionally raised KeyError on every payout.* event.
     return Event(
         id=payload["id"],
         type=payload["type"],
@@ -83,7 +112,8 @@ def parse_event(payload: Dict[str, Any]) -> Event:
         livemode=payload["livemode"],
         data=EventData(
             object=data.get("object", "charge"),
-            charge=parse_charge(data["charge"]),
+            charge=parse_charge(charge) if charge else None,
             refund=parse_refund(refund) if refund else None,
+            payout=parse_payout(payout) if payout else None,
         ),
     )

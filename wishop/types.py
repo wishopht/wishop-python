@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 CHARGE_STATUS_INITIATED = "INITIATED"
 CHARGE_STATUS_OTP_SENT = "OTP_SENT"
@@ -36,6 +36,18 @@ EVENT_CHARGE_PAID = "charge.paid"
 EVENT_CHARGE_FAILED = "charge.failed"
 EVENT_CHARGE_EXPIRED = "charge.expired"
 EVENT_CHARGE_REFUNDED = "charge.refunded"
+
+EVENT_PAYOUT_CREATED = "payout.created"
+EVENT_PAYOUT_SUCCEEDED = "payout.succeeded"
+EVENT_PAYOUT_FAILED = "payout.failed"
+
+PAYOUT_STATUS_PENDING = "PENDING"
+PAYOUT_STATUS_SUCCEEDED = "SUCCEEDED"
+PAYOUT_STATUS_FAILED = "FAILED"
+
+# Payout-only fail reasons. FAIL_REASON_WALLET_NOT_FOUND is shared with charges.
+FAIL_REASON_INSUFFICIENT_MERCHANT_BALANCE = "INSUFFICIENT_MERCHANT_BALANCE"
+FAIL_REASON_RECIPIENT_INELIGIBLE = "RECIPIENT_INELIGIBLE"
 
 
 @dataclass(frozen=True)
@@ -82,10 +94,52 @@ class ChargeList:
 
 
 @dataclass(frozen=True)
+class Payout:
+    """Money sent from your wallet to a customer's.
+
+    ``status`` of ``PAYOUT_STATUS_PENDING`` does not mean "queued": the wallet's
+    answer was lost, so the money may or may not have moved. It resolves on its
+    own and a ``payout.succeeded`` or ``payout.failed`` webhook reports the
+    outcome. Never send a replacement payout for a pending one.
+    """
+
+    id: str
+    recipient_phone: str
+    currency: str
+    amount: str
+    # Charged on top of amount: your wallet is debited amount + fee.
+    fee: str
+    status: str
+    livemode: bool
+    created_at: datetime
+    recipient_name: Optional[str] = None
+    fail_reason: Optional[str] = None
+    reference: Optional[str] = None
+    # Values may be any JSON type, unlike a charge's string map.
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    completed_at: Optional[datetime] = None
+
+
+@dataclass(frozen=True)
+class PayoutList:
+    payouts: List[Payout]
+    has_more: bool
+
+
+@dataclass(frozen=True)
 class EventData:
+    """The object an event is about.
+
+    ``object`` says which — ``"charge"`` on charge.* events, ``"payout"`` on
+    payout.* ones — and only the matching field is set. ``charge`` became
+    optional in 1.1.0: a payout event carries none, and reading it
+    unconditionally used to raise KeyError.
+    """
+
     object: str
-    charge: Charge
+    charge: Optional[Charge] = None
     refund: Optional[Refund] = None
+    payout: Optional[Payout] = None
 
 
 @dataclass(frozen=True)
