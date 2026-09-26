@@ -22,7 +22,7 @@ classifiers = [
 ]
 
 [project.urls]
-Documentation = "https://docs.wishop.com"
+Documentation = "https://developers.wishopht.com"
 Source = "https://github.com/wishop/wishop-python"
 
 [project.optional-dependencies]

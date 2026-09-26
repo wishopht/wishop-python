@@ -6,7 +6,7 @@ import requests
 
 from .errors import APIConnectionError, error_for
 
-DEFAULT_BASE_URL = "https://api.wishop.com"
+DEFAULT_BASE_URL = "https://gatewayapi.wishopht.com"
 DEFAULT_TIMEOUT = 30.0
 
 

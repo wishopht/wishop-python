@@ -43,7 +43,7 @@ CHARGE = {
     "expires_at": "2026-08-12T15:30:00.000Z",
     "confirmed_at": None,
     "created_at": "2026-08-12T15:00:00.000Z",
-    "pay_url": "https://pay.wishop.com/pay/9f2c7a1e",
+    "pay_url": "https://gatewayapi.wishopht.com/pay/9f2c7a1e",
 }
 
 REFUND = {
@@ -104,7 +104,7 @@ def test_create_charge_sends_request_and_unwraps_envelope(client):
     }
 
     assert charge.id == "ch_3kQ8xR2mVn7pLdYt"
-    assert charge.pay_url == "https://pay.wishop.com/pay/9f2c7a1e"
+    assert charge.pay_url == "https://gatewayapi.wishopht.com/pay/9f2c7a1e"
     assert charge.metadata == {"cart_id": "c_88213"}
 
 
