@@ -66,9 +66,11 @@ class Charge:
     customer_debit_amount: Optional[str] = None
     amount_refunded: Optional[str] = None
     customer_phone_masked: Optional[str] = None
+    # "api" (created by you) or "app" (a customer paid your pay code in the app).
+    channel: Optional[str] = None
     fail_reason: Optional[str] = None
     return_url: Optional[str] = None
-    metadata: Dict[str, str] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
     expires_at: Optional[datetime] = None
     confirmed_at: Optional[datetime] = None
     pay_url: Optional[str] = None

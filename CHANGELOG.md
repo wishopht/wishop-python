@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- `Charge.channel` (`"api"` or `"app"`). Charges started by a customer in the
+  WiShop app are returned by the API and carried by webhooks; the field was
+  previously dropped.
+- `Charge.metadata` and `charges.create(metadata=...)` are typed `Dict[str, Any]`:
+  the API accepts any JSON value, not only strings.
+
 ## 1.1.0
 
 Payouts — send money from your wallet to a customer's.

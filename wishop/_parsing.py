@@ -41,6 +41,7 @@ def parse_charge(payload: Dict[str, Any]) -> Charge:
         customer_debit_amount=payload.get("customer_debit_amount"),
         amount_refunded=payload.get("amount_refunded"),
         customer_phone_masked=payload.get("customer_phone_masked"),
+        channel=payload.get("channel"),
         fail_reason=payload.get("fail_reason"),
         return_url=payload.get("return_url"),
         metadata=payload.get("metadata") or {},

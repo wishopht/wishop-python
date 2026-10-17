@@ -35,6 +35,7 @@ CHARGE = {
     "customer_debit_amount": "1500.00",
     "amount_refunded": "0.00",
     "customer_phone_masked": None,
+    "channel": "api",
     "status": "INITIATED",
     "fail_reason": None,
     "return_url": "https://yourstore.com/orders/1042/complete",
@@ -140,6 +141,22 @@ def test_charge_parses_timestamps_and_nullables(client):
     assert charge.confirmed_at is None
     assert charge.fail_reason is None
     assert charge.customer_phone_masked is None
+
+
+@responses.activate
+def test_charge_exposes_channel_and_non_string_metadata(client):
+    responses.add(
+        responses.GET,
+        BASE_URL + "/v1/charges/ch_1",
+        body=envelope(200, {**CHARGE, "channel": "app", "metadata": {"seats": 4, "vip": True}}),
+        status=200,
+        content_type="application/json",
+    )
+
+    charge = client.charges.retrieve("ch_1")
+
+    assert charge.channel == "app"
+    assert charge.metadata == {"seats": 4, "vip": True}
 
 
 @responses.activate

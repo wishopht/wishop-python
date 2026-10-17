@@ -20,7 +20,7 @@ class Charges:
         description: Optional[str] = None,
         fee_bearer: Optional[str] = None,
         return_url: Optional[str] = None,
-        metadata: Optional[Dict[str, str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
         idempotency_key: Optional[str] = None,
     ) -> Charge:
         body: Dict[str, Any] = {"amount": amount, "currency": currency}
