@@ -23,7 +23,7 @@ classifiers = [
 
 [project.urls]
 Documentation = "https://developers.wishopht.com"
-Source = "https://github.com/wishop/wishop-python"
+Source = "https://github.com/wishopht/wishop-python"
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "responses>=0.23", "mypy>=1.8"]
