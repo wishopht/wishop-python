@@ -1,8 +1,8 @@
 # Wishop Python
 
-The official Python client for the [Wishop API](https://developers.wishopht.com).
+Python client for the [Wishop API](https://developers.wishopht.com).
 
-Create charges, send customers to a hosted checkout page, refund them, and verify webhooks.
+Use it to create charges, send customers to the hosted checkout page, issue refunds and payouts, and verify webhooks.
 
 ## Install
 
@@ -33,9 +33,9 @@ charge = client.charges.create(
 print(charge.pay_url)
 ```
 
-Send the customer to `charge.pay_url`. It is returned on create only, so persist it with the order.
+Redirect the customer to `charge.pay_url`. The API only returns it when the charge is created, so save it with the order.
 
-When the payment reaches a terminal state, Wishop sends a webhook and returns the customer to your `return_url`. Confirm the outcome from the webhook or by retrieving the charge — never from the redirect alone.
+When the payment finishes, Wishop sends you a webhook and redirects the customer to your `return_url`. Use the webhook, or retrieve the charge, to confirm the result. Don't rely on the redirect alone.
 
 ## Configuration
 
@@ -51,12 +51,12 @@ client = Wishop(
 | Argument | Default | Notes |
 | --- | --- | --- |
 | `timeout` | `30.0` | Seconds, applied to every request |
-| `session` | a new `requests.Session` | Supply your own for proxies, retries at the transport layer, or custom TLS |
-| `base_url` | `https://gatewayapi.wishopht.com` | For pointing at a mock server in your own tests |
+| `session` | a new `requests.Session` | Pass your own for proxies, transport-level retries, or custom TLS |
+| `base_url` | `https://gatewayapi.wishopht.com` | Change it to point at a mock server in your tests |
 
-Test and live mode are selected by the key, not by configuration. A `sk_test_` key reaches test data; a `sk_live_` key reaches live data.
+The key decides the mode. A `sk_test_` key uses test data and a `sk_live_` key uses live data.
 
-The client is synchronous. From an async framework, run calls in a worker thread so the event loop is not blocked:
+The client is synchronous. In an async app, run calls in a worker thread so they don't block the event loop:
 
 ```python
 charge = await asyncio.to_thread(client.charges.create, amount="1500.00", currency="HTG")
@@ -70,7 +70,7 @@ charge = client.charges.retrieve("ch_3kQ8xR2mVn7pLdYt")
 page = client.charges.list(status="PAID", limit=100)
 ```
 
-`list` returns one page. Pass the id of the last charge as `starting_after` while `has_more` is true:
+`list` returns one page at a time. To get the next page, pass the id of the last charge as `starting_after`, and stop when `has_more` is false:
 
 ```python
 def all_charges(client, status=None):
@@ -88,7 +88,7 @@ def all_charges(client, status=None):
         starting_after = page.charges[-1].id
 ```
 
-Search across charge id and order id with `query`, which maps to the API's `q` parameter.
+Use `query` to search by charge id or order id. It is sent as the API's `q` parameter.
 
 ## Refunds
 
@@ -102,11 +102,11 @@ refund = client.refunds.create(
 refunds = client.refunds.list("ch_3kQ8xR2mVn7pLdYt")
 ```
 
-Omit `amount` to refund everything still refundable. Refund lists are not paginated.
+Leave out `amount` to refund whatever is left on the charge. Refund lists are not paginated.
 
 ## Payouts
 
-Sends money from your wallet to a customer's — payroll, marketplace settlements, rewards.
+A payout sends money from your wallet to a customer's wallet, for example for payroll, marketplace settlements or rewards.
 
 ```python
 payout = client.payouts.create(
@@ -121,25 +121,25 @@ payouts = client.payouts.list(status="FAILED")
 one = client.payouts.retrieve("po_7Hn2vB9xQm4tRkLw")
 ```
 
-`idempotency_key` has **no default** here, unlike everywhere else in this client: a payout pushes money out, so an un-keyed retry after a dropped connection is indistinguishable from a second payment. Your wallet is debited `amount + fee`.
+`idempotency_key` is required for payouts. Without it, retrying after a dropped connection could send the money twice. Your wallet is debited `amount + fee`.
 
-Three outcomes, and the middle one is the one to handle:
+A payout comes back with one of three statuses. Make sure your code handles `PENDING`:
 
 ```python
-if payout.status == wishop.PAYOUT_STATUS_SUCCEEDED:
-    ...  # the money moved
-elif payout.status == wishop.PAYOUT_STATUS_PENDING:
-    # The wallet's answer was lost — the money may or may not have moved.
-    # It resolves on its own and a webhook reports the outcome.
-    # Never send a replacement; retry with the SAME key if you must.
+if payout.status == "SUCCEEDED":
+    ...  # The money was sent.
+elif payout.status == "PENDING":
+    # We didn't get a final answer from the wallet, so the money may or may not have moved.
+    # It settles on its own and a webhook tells you the result.
+    # Don't create a new payout. If you retry, use the same key.
     ...
 ```
 
-A decline raises `UnprocessableError` and still records a `FAILED` payout you can `retrieve` — unlike a rejected refund, which leaves nothing behind.
+If the payout is declined, `create` raises `UnprocessableError`, but the payout is still saved as `FAILED` and you can `retrieve` it. A rejected refund is not saved.
 
 ## Money
 
-Amounts are strings, never numbers, and every field that holds money is a string: `amount`, `fee`, `net`, `customer_debit_amount`, `amount_refunded`. Parse them with `Decimal`, never a float.
+Every money field is a string: `amount`, `fee`, `net`, `customer_debit_amount`, `amount_refunded`. Parse them with `Decimal`, not `float`.
 
 ```python
 from decimal import Decimal
@@ -149,7 +149,7 @@ amount = Decimal(charge.amount)
 
 ## Idempotency
 
-Pass a key on charge and refund creation so a retry after a timeout cannot charge twice:
+Pass an idempotency key when creating charges and refunds, so retrying after a timeout can't charge the customer twice:
 
 ```python
 charge = client.charges.create(
@@ -159,9 +159,9 @@ charge = client.charges.create(
 )
 ```
 
-On charges and refunds nothing is sent unless you pass it. **Payouts are the exception: `idempotency_key` is a required keyword argument**, so omitting it is a `TypeError` rather than a rejected request.
+For charges and refunds the key is optional. For payouts it is a required keyword argument, so leaving it out raises a `TypeError` before any request is sent.
 
-Derive a charge key from the payment *attempt*, not the order — reusing an order id replays the previous failure instead of creating the charge a retrying customer needs. Derive a payout key the opposite way, from the payment itself, and reuse it across retries: a fresh key on a payout retry sends a second payment. Keys are remembered for 24 hours.
+Build a charge key from the payment attempt, not just the order. If you reuse the order id, a customer who tries again gets the earlier failed charge back instead of a new one. For payouts, do the opposite: build the key from the payout itself and reuse it on every retry, because a new key creates a second payout. Keys expire after 24 hours.
 
 ## Errors
 
@@ -182,29 +182,29 @@ except WishopError as exc:
 
 | Exception | Status | Cause |
 | --- | --- | --- |
-| `ValidationError` | 400 | Malformed body, invalid amount or currency, metadata over the limits |
+| `ValidationError` | 400 | Malformed body, invalid amount or currency, or metadata over the limits |
 | `AuthenticationError` | 401 | Missing, malformed, unknown, or revoked key |
-| `PermissionError` | 403 | Live key from an address that is not whitelisted |
-| `NotFoundError` | 404 | No charge, refund or payout with that id in this mode; or no wallet for a payout recipient's phone |
-| `ConflictError` | 409 | Idempotency key still in flight, charge no longer payable, or wallet not provisioned for live payouts |
-| `ChargeExpiredError` | 410 | Charge expired |
-| `PayloadTooLargeError` | 413 | Upload too large |
-| `UnprocessableError` | 422 | Currency not enabled, charge not refundable, refund exceeds remaining, wallet declined, or a payout declined for balance or recipient |
-| `RateLimitError` | 429 | Rate limit exceeded; carries `retry_after` in seconds |
-| `APIError` | 5xx and anything unmapped | Failure on the gateway side |
-| `APIConnectionError` | — | The request never completed: DNS, TLS, connection reset, or timeout |
+| `PermissionError` | 403 | Live key used from an IP address that is not whitelisted |
+| `NotFoundError` | 404 | No charge, refund or payout with that id in this mode, or no wallet for the payout recipient's phone |
+| `ConflictError` | 409 | A request with the same idempotency key is still running, the charge can no longer be paid, or your wallet is not set up for live payouts |
+| `ChargeExpiredError` | 410 | The charge has expired |
+| `PayloadTooLargeError` | 413 | Request body too large |
+| `UnprocessableError` | 422 | Currency not enabled, charge not refundable, refund larger than what is left, wallet declined, or payout declined for balance or recipient |
+| `RateLimitError` | 429 | Too many requests. `retry_after` gives the wait in seconds |
+| `APIError` | 5xx or anything else | Server error on Wishop's side |
+| `APIConnectionError` | none | The request didn't complete: DNS, TLS, connection reset, or timeout |
 
-All of them subclass `WishopError`, which carries `.status_code` and `.message`.
+They all inherit from `WishopError`, which has `.status_code` and `.message`.
 
-`PermissionError` shadows the builtin of the same name when imported bare — import it as `from wishop import PermissionError as WishopPermissionError` if that matters in your module.
+Importing `PermissionError` directly hides Python's built-in `PermissionError`. If that is a problem, import it under another name: `from wishop import PermissionError as WishopPermissionError`.
 
-`.message` is prose and its wording can change — branch on the exception type or `.status_code`, never on the text.
+The wording of `.message` can change. Check the exception type or `.status_code` in your code, not the message text.
 
-The client does not retry. `ConflictError`, `RateLimitError`, and `APIError` are safe to retry with backoff and the same idempotency key; nothing else is.
+The client never retries on its own. You can retry `ConflictError`, `RateLimitError` and `APIError` with backoff, using the same idempotency key. Don't retry the others.
 
 ## Payment failures
 
-A failed payment is not an exception — the call succeeded, the payment didn't. Read `status` and `fail_reason`:
+A failed payment doesn't raise an exception. The API call worked; the customer's payment did not. Check `status` and `fail_reason`:
 
 ```python
 if charge.status == "FAILED":
@@ -213,20 +213,20 @@ if charge.status == "FAILED":
 
 | `fail_reason` | Meaning |
 | --- | --- |
-| `INSUFFICIENT_FUNDS` | Wallet balance did not cover the payment |
-| `PIN_LOCKED` | Wallet locked after repeated incorrect PINs |
-| `OTP_EXPIRED` | One-time code expired before use |
-| `OTP_ATTEMPTS_EXCEEDED` | Too many incorrect one-time codes |
+| `INSUFFICIENT_FUNDS` | Not enough money in the wallet |
+| `PIN_LOCKED` | Wallet locked after too many wrong PINs |
+| `OTP_EXPIRED` | The one-time code expired |
+| `OTP_ATTEMPTS_EXCEEDED` | Too many wrong one-time codes |
 | `WALLET_NOT_FOUND` | No wallet for that phone number |
-| `DECLINED` | Wallet refused the payment |
-| `TIMEOUT` | Confirmation timed out |
-| `INTERNAL_ERROR` | Failure on our side |
+| `DECLINED` | The wallet declined the payment |
+| `TIMEOUT` | The customer didn't confirm in time |
+| `INTERNAL_ERROR` | Something failed on Wishop's side |
 
-Keep a default branch — new reasons can be added, and `fail_reason` is a plain string so an unknown value arrives intact rather than failing to parse.
+Always have a fallback for reasons you don't recognise, because new ones may be added. `fail_reason` is a plain string, so an unknown value still comes through.
 
 ## Webhooks
 
-Verification needs the body **exactly as received**. `request.json` and `request.get_json()` will not do — they hand you a parsed object, and re-serializing it changes whitespace and key order so the signature will never match.
+Verify the signature against the raw request body. Don't use `request.json` or `request.get_json()`: they return parsed JSON, and serializing it again changes the bytes, so the signature won't match.
 
 Flask:
 
@@ -263,25 +263,25 @@ def wishop_webhook():
     return "", 200
 ```
 
-Django uses `request.body`; FastAPI uses `await request.body()`.
+In Django, use `request.body`. In FastAPI, use `await request.body()`.
 
-`construct_event` rejects a stale timestamp, an altered body, and a signature that does not match. It accepts a match on any `v1` value, which is what keeps events flowing during a secret rotation. The default tolerance is 300 seconds:
+`construct_event` raises `SignatureVerificationError` if the timestamp is too old, the body was changed, or the signature doesn't match. A header can carry several `v1` signatures and one match is enough, so events keep arriving while you rotate your secret. Timestamps up to 300 seconds old are accepted by default. To change that:
 
 ```python
 event = construct_event(body, signature, secret, tolerance=60)
 ```
 
-Delivery is at-least-once, so deduplicate on the `X-Webhook-Id` header, which is stable across retries. Record it in the same transaction as the work it triggers. Respond `2xx` once the event is durably recorded and queue anything slow — you have about ten seconds per attempt.
+The same event can arrive more than once, so check the `X-Webhook-Id` header, which stays the same on every retry. Save it in the same database transaction as the work the event triggers. Reply with `2xx` as soon as you have saved the event, and do slow work in the background. Each delivery attempt times out after about ten seconds.
 
-`event.data.refund` is set only on `charge.refunded`. A partial refund leaves the charge `PAID`; read `amount_refunded`.
+`event.data.refund` is only set on `charge.refunded`. After a partial refund the charge stays `PAID`; read `amount_refunded` to see how much was returned.
 
-`event.data.charge` is `None` on `payout.*` events and `event.data.payout` is `None` on `charge.*` ones — `event.data.object` says which you have.
+On `payout.*` events `event.data.charge` is `None`, and on `charge.*` events `event.data.payout` is `None`. `event.data.object` tells you which one is set.
 
 ## Testing
 
-Test mode uses `sk_test_` keys against the same host. The outcome is chosen by a phone number — the one the customer enters for a charge, the recipient's for a payout. The two use different tables; `+50900000006` is how you exercise a pending payout. See [test phone numbers](https://developers.wishopht.com/testing/test-phone-numbers).
+Test mode uses `sk_test_` keys on the same API host. The phone number decides what happens: the customer's number for a charge, the recipient's for a payout. Charges and payouts use different test numbers; `+50900000006` gives you a pending payout. See [test phone numbers](https://developers.wishopht.com/testing/test-phone-numbers).
 
-To test your own code against this client, point it at a local server:
+To test your own code without calling Wishop, point the client at a local server:
 
 ```python
 client = Wishop("sk_test_key", base_url="http://localhost:8080")
@@ -289,7 +289,7 @@ client = Wishop("sk_test_key", base_url="http://localhost:8080")
 
 ## Reference
 
-Field-by-field documentation for the charge, refund, payout, and event objects lives at [developers.wishopht.com](https://developers.wishopht.com).
+Every field on charges, refunds, payouts and events is documented at [developers.wishopht.com](https://developers.wishopht.com).
 
 ## License
 
