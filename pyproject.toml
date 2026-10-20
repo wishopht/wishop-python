@@ -26,7 +26,7 @@ Documentation = "https://developers.wishopht.com"
 Source = "https://github.com/wishopht/wishop-python"
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "responses>=0.23", "mypy>=1.8"]
+dev = ["pytest>=7", "responses>=0.23", "mypy>=1.8", "types-requests"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["wishop"]
